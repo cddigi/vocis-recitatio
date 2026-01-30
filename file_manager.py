@@ -38,7 +38,7 @@ class RecordingInfo:
             t = time.localtime(self.modified_time)
             return f"{t[1]:02d}/{t[2]:02d} {t[3]:02d}:{t[4]:02d}"
         except Exception:
-            return "??/?? ??:??"
+            return "--/-- --:--"
 
     @property
     def duration_estimate(self):
@@ -245,7 +245,7 @@ class FileManager:
             Files.SORT_SIZE_DESC: "MAG ↓",
             Files.SORT_SIZE_ASC: "MAG ↑",
         }
-        return labels.get(self._sort_mode, "???")
+        return labels.get(self._sort_mode, "---")
 
     def delete_recording(self, recording):
         """
