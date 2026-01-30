@@ -1,0 +1,26 @@
+{
+  "name": "Vōcis Recitātiō",
+  "version": "1.0.0",
+  "description": "Voice recorder with Hackers (1995) aesthetic and Latin UI",
+  "author": "Cornelius",
+  "license": "UNLICENSE",
+  "main": "main.py",
+  "icon": "icon.png",
+  "category": "Tools",
+  "hardware": {
+    "device": "M5Tab5",
+    "display": "1280x720",
+    "audio": true,
+    "sdcard": true
+  },
+  "features": [
+    "Voice recording with dual-mic AEC",
+    "WAV file playback",
+    "Variable speed playback (tardē/celer)",
+    "SD card storage",
+    "Touch UI with Latin commands",
+    "File sorting and management"
+  ],
+  "repository": "https://github.com/YOUR_USERNAME/vocis-recitatio",
+  "keywords": ["audio", "recorder", "voice", "latin", "hackers", "vocis", "recitatio"]
+}
