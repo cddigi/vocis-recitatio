@@ -1,0 +1,174 @@
+# VŌCIS RECITĀTIŌ
+
+```
+██╗   ██╗ ██████╗  ██████╗██╗███████╗
+██║   ██║██╔═══██╗██╔════╝██║██╔════╝
+██║   ██║██║   ██║██║     ██║███████╗
+╚██╗ ██╔╝██║   ██║██║     ██║╚════██║
+ ╚████╔╝ ╚██████╔╝╚██████╗██║███████║
+  ╚═══╝   ╚═════╝  ╚═════╝╚═╝╚══════╝
+
+██████╗ ███████╗ ██████╗██╗████████╗ █████╗ ████████╗██╗ ██████╗
+██╔══██╗██╔════╝██╔════╝██║╚══██╔══╝██╔══██╗╚══██╔══╝██║██╔═══██╗
+██████╔╝█████╗  ██║     ██║   ██║   ███████║   ██║   ██║██║   ██║
+██╔══██╗██╔══╝  ██║     ██║   ██║   ██╔══██║   ██║   ██║██║   ██║
+██║  ██║███████╗╚██████╗██║   ██║   ██║  ██║   ██║   ██║╚██████╔╝
+╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝
+
+                  [ HACK THE PLANET ]
+```
+
+Voice recorder for M5Stack M5Tab5, inspired by the **Talkboy** from *Home Alone 2*,
+with a **Hackers (1995)** aesthetic and **Classical Latin** interface.
+
+> *recitātiō vōcis* — "a recitation of voice"
+
+## Features
+
+| Button | Latin | Meaning |
+|--------|-------|---------|
+| **SCRĪBE** | *scrībere* (to write) | Record |
+| **RECITĀ** | *recitāre* (to recite) | Play |
+| **DĒSINE** | *dēsinere* (to stop) | Stop |
+| **SERVĀ** | *servāre* (to save) | Save |
+| **TARDĒ** | *tardē* (slowly) | Slow playback |
+| **CELER** | *celer* (quickly) | Fast playback |
+| **ŌRDŌ** | *ōrdō* (order) | Sort files |
+| **DĒLĒ** | *dēlēre* (to destroy) | Delete |
+
+## Status Messages
+
+| Status | Latin | Translation |
+|--------|-------|-------------|
+| Ready | `PARĀTUS_` | Prepared |
+| Recording | `SCRĪBŌ...` | I am writing |
+| Playing | `RECITŌ...` | I am reciting |
+| Paused | `INTERMISSIŌ` | Intermission |
+| Stopped | `DĒSIĪ` | I have stopped |
+| Saving | `SERVŌ AD DISCUM...` | Saving to disk |
+
+## Hardware Requirements
+
+- **M5Stack M5Tab5** (ESP32-P4)
+  - 1280×720 5" IPS touchscreen
+  - ES8388 audio codec
+  - ES7210 AEC front-end (dual microphones)
+  - MicroSD card slot
+
+## Installation
+
+### Via Launcher (Recommended)
+
+1. Copy the `vocis-recitatio` folder to your SD card
+2. Launch via [Launcher](https://github.com/bmorcelli/Launcher)
+
+### Direct Flash
+
+1. Install [UIFlow2](https://uiflow2.m5stack.com/) on your M5Tab5
+2. Copy all files to the device
+3. Run `main.py`
+
+## File Structure
+
+```
+vocis-recitatio/
+├── main.py              # Entry point for Launcher
+├── vocis_recitatio.py   # Main application class
+├── audio_engine.py      # Recording/playback engine
+├── ui.py                # Hackers-style touch UI
+├── file_manager.py      # SD card file management
+├── config.py            # Colors, layout, settings
+├── manifest.json        # Launcher metadata
+├── UNLICENSE            # Public domain dedication
+└── README.md            # This file
+```
+
+## Recordings
+
+Recordings are saved to `/sd/vocis-recitatio/recitationes/` as WAV files:
+- Format: 16-bit PCM
+- Sample rate: 16kHz
+- Channels: Mono
+
+Filenames use the format: `vocis_YYYYMMDD_HHMMSS.wav`
+
+## UI Design
+
+The interface combines **Hackers (1995)** cyberpunk aesthetic with **Classical Latin**:
+- Green phosphor terminal text on black
+- Neon cyan, magenta, and yellow accents
+- Matrix-style waveform visualization
+- Terminal cursor blink effects
+- Latin imperative verbs for commands
+- "Hack the Planet" vibes
+
+## Speed Control
+
+Like the original Talkboy, variable-speed playback:
+- **TARDĒ (0.5x)** — *vōx gravis* (deep voice)
+- **Normal (1.0x)** — Standard speed
+- **CELER (1.5x)** — *vōx acūta* (high voice)
+
+## API Reference
+
+### AudioEngine
+
+```python
+from audio_engine import AudioEngine
+
+engine = AudioEngine()
+engine.start_recording()      # Incipit scrībere
+engine.stop_recording()       # Dēsinit scrībere
+engine.save_recording("name") # Servat ad discum
+engine.play_file("/path")     # Recitat
+engine.set_speed_slow()       # Tardē (0.5x)
+engine.set_speed_fast()       # Celeriter (1.5x)
+```
+
+### FileManager
+
+```python
+from file_manager import FileManager
+
+files = FileManager()
+recordings = files.refresh()  # Legit discum
+files.set_sort("date_desc")   # Ōrdō per diem
+files.delete_recording(rec)   # Dēlet recitātiōnem
+```
+
+## Etymology
+
+- **vōx, vōcis** (f.) — voice, sound
+- **recitātiō, recitātiōnis** (f.) — a reading aloud, recitation
+- **vōcis** — genitive singular, "of voice"
+- **recitātiō vōcis** — "a recitation of voice" (genitive of means)
+
+## License
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+this software, either in source code form or as a compiled binary, for any
+purpose, commercial or non-commercial, and by any means.
+
+See [UNLICENSE](UNLICENSE) for full details.
+
+## Credits
+
+- Inspired by the [Talkboy](https://en.wikipedia.org/wiki/Talkboy) by Tiger Electronics
+- Visual aesthetic from *Hackers* (1995) directed by Iain Softley
+- Built for [M5Stack M5Tab5](https://shop.m5stack.com/products/m5stack-tab5-iot-development-kit-esp32-p4)
+- Launcher integration via [bmorcelli/Launcher](https://github.com/bmorcelli/Launcher)
+
+## Links
+
+- [UIFlow2 Documentation](https://uiflow2.m5stack.com/)
+- [UIFlow MicroPython Docs](https://uiflow-micropython.readthedocs.io/)
+- [M5Stack GitHub](https://github.com/m5stack/uiflow-micropython)
+
+---
+
+*"Mess with the best, die like the rest."* — Hackers (1995)
+
+*"Certā cum optimīs, morere cum cēterīs."* — (rough Latin equivalent)
+# vocis-recitatio
