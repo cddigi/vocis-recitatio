@@ -1,7 +1,8 @@
 """
 VŌCIS RECITĀTIŌ for M5Stack M5Tab5
 ===================================
-Entry point for Launcher integration.
+App entry point. Invoked by the root boot.py shim (the Launcher "main"),
+which puts src/ on sys.path before importing this module.
 
 Voice recorder inspired by the Talkboy from Home Alone 2,
 with a Hackers (1995) aesthetic and Classical Latin interface.
