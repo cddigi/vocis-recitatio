@@ -31,12 +31,8 @@ simplicity over enterprise patterns. Don't over-engineer.
 
 ```
 vocis-recitatio/
-├── main.py              # Entry point for Launcher
-├── vocis_recitatio.py   # Main application class
-├── audio_engine.py      # Recording/playback engine
-├── ui.py                # Hackers-style touch UI
-├── file_manager.py      # SD card file management
-├── config.py            # Colors, layout, settings
+├── boot.py              # Launcher entry shim — puts src/ on sys.path,
+│                        #   then runs src/main.py (manifest "main": "boot.py")
 ├── manifest.json        # Launcher metadata
 ├── firmware/
 │   └── vocis-recitatio-tab5.bin  # compiled flashable image (build
@@ -45,10 +41,15 @@ vocis-recitatio/
 └── README.md
 ```
 
+The app code lives in `src/`; `boot.py` at the repo root is just the Launcher
+entry shim (it adds `src/` to `sys.path` so the flat sibling imports keep
+working, then calls `src/main.py`). Don't move `boot.py` into `src/` — the
+Launcher and `manifest.json` expect it at the root.
+
 Keep responsibilities in their existing module — audio logic in
-`audio_engine.py`, all drawing/touch in `ui.py`, SD operations in
-`file_manager.py`, tunables in `config.py`. Don't scatter constants; they live
-in `config.py`.
+`src/audio_engine.py`, all drawing/touch in `src/ui.py`, SD operations in
+`src/file_manager.py`, tunables in `src/config.py`. Don't scatter constants;
+they live in `src/config.py`.
 
 ### firmware/vocis-recitatio-tab5.bin
 
@@ -73,7 +74,7 @@ were stray.
 ### Public APIs (keep these stable)
 
 ```python
-# audio_engine.py
+# src/audio_engine.py
 engine.start_recording()
 engine.stop_recording()
 engine.save_recording("name")
@@ -81,7 +82,7 @@ engine.play_file("/path")
 engine.set_speed_slow()   # 0.5x
 engine.set_speed_fast()   # 1.5x
 
-# file_manager.py
+# src/file_manager.py
 files.refresh()                 # returns recordings list
 files.set_sort("date_desc")
 files.delete_recording(rec)
@@ -122,8 +123,9 @@ ask me if unsure rather than inventing dog-Latin.
 
 The modules are cleanly separated, so parallel sub-agents work well *when it
 makes sense* — i.e. when the changes land in DIFFERENT files (audio in
-`audio_engine.py`, UI/drawing/touch in `ui.py`, SD ops in `file_manager.py`,
-tunables in `config.py`). Independent work in separate modules can run in
+`src/audio_engine.py`, UI/drawing/touch in `src/ui.py`, SD ops in
+`src/file_manager.py`, tunables in `src/config.py`). Independent work in
+separate modules can run in
 parallel safely. Changes that touch the SAME file should go to a single agent
 to avoid conflicting edits. Doc-only edits to `CLAUDE.md` / `README.md` can
 run alongside code edits without stepping on anything.
