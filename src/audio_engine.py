@@ -619,6 +619,10 @@ class AudioEngine:
 
         Returns audio level (0-100) if recording, else 0.
         """
+        # Auto-stop recording at the configured cap (buffer was sized for it).
+        if self.is_recording and self.recording_duration >= Audio.MAX_RECORDING_TIME:
+            self.stop_recording()
+
         # End-of-playback detection (sample-rate playback is non-blocking).
         if self.is_playing and self._playback_total_s > 0:
             if self.playback_elapsed_s >= self._playback_total_s:
