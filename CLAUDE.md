@@ -38,9 +38,10 @@ vocis-recitatio/
 ├── file_manager.py      # SD card file management
 ├── config.py            # Colors, layout, settings
 ├── manifest.json        # Launcher metadata
-├── firmware/
-│   └── vocis-recitatio-tab5.bin  # compiled flashable image (build
-│                                 # artifact — do not hand-edit)
+├── docs/
+│   └── ux-mockup.svg    # UX mockup (1280x720 CRT-terminal layout)
+├── firmware/            # gitignored — local build artifact, not committed
+│   └── vocis-recitatio-tab5.bin  # compiled flashable image (do not hand-edit)
 ├── UNLICENSE            # Public domain dedication
 └── README.md
 ```
@@ -55,8 +56,9 @@ in `config.py`.
 A ~10.9 MB compiled UIFlow2 image with the app baked in — a direct-flash
 alternative to the Launcher-off-SD distribution (flash it and the toy just
 runs). It's a generated build artifact: regenerate it by recompiling, never
-by hand-editing. It's tracked in git on purpose, so don't delete it as if it
-were stray.
+by hand-editing. It is gitignored (`firmware/`) and NOT committed — rebuild
+it locally rather than expecting it from the repo, and don't re-add it to
+version control.
 
 ## Audio Engine Notes
 
