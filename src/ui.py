@@ -27,6 +27,12 @@ def _now_ms():
     return time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
 
 
+def _fmt_mmss(seconds):
+    """Format a number of seconds as M:SS."""
+    s = int(seconds)
+    return "{}:{:02d}".format(s // 60, s % 60)
+
+
 class HackerButton:
     """
     Custom button with Hackers (1995) terminal aesthetic.
@@ -279,6 +285,36 @@ class WaveformDisplay:
         self._buffer = [0] * self._buffer_size
         self._buffer_pos = 0
         self.draw_background()
+
+    def draw_progress(self, fraction, elapsed_s, total_s):
+        """Draw a playback progress bar with elapsed / total time."""
+        if not HARDWARE_AVAILABLE:
+            return
+
+        self.draw_background()
+
+        margin = 40
+        bar_x = self.x + margin
+        bar_w = self.width - margin * 2
+        bar_h = 24
+        bar_y = self.y + self.height // 2 - bar_h // 2
+
+        # Track + fill
+        Widgets.drawRect(bar_x, bar_y, bar_w, bar_h, Colors.PHOSPHOR_DIM)
+        if fraction < 0:
+            fraction = 0
+        elif fraction > 1:
+            fraction = 1
+        fill_w = int(bar_w * fraction)
+        if fill_w > 0:
+            Widgets.fillRect(bar_x, bar_y, fill_w, bar_h, Colors.WAVE_PRIMARY)
+
+        # Elapsed / total time
+        label = "{} / {}".format(_fmt_mmss(elapsed_s), _fmt_mmss(total_s))
+        Widgets.Label(
+            label, bar_x, bar_y - 32, 0.8,
+            text_color=Colors.NEON_CYAN, bg_color=Colors.BG_TERMINAL
+        )
 
 
 class FileListView:
@@ -1029,6 +1065,8 @@ class VocisRecitatioUI:
                 self.buttons['play'].set_label(Text.BTN_PLAY)
             if 'rec' in self.buttons:
                 self.buttons['rec'].set_active(False)
+            if self.waveform:
+                self.waveform.clear()  # wipe leftover bars / progress bar
             if self.status_bar:
                 self.status_bar.set_recording_time(0)
                 # Preserve DĒSIĪ on a manual stop; show PARĀTUS otherwise.
@@ -1056,6 +1094,14 @@ class VocisRecitatioUI:
         # Reconcile transport controls with the engine's actual state
         # (resets play/rec buttons + status when playback or recording ends).
         self._reconcile_state()
+
+        # Playback progress bar (waveform area is otherwise idle while playing)
+        if (self.audio.is_playing or self.audio.is_paused) and self.waveform:
+            self.waveform.draw_progress(
+                self.audio.playback_fraction,
+                self.audio.playback_elapsed_s,
+                self.audio.playback_total_s,
+            )
 
         # Update status blink
         if self.status_bar:
