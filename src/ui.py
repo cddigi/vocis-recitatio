@@ -557,6 +557,10 @@ class VocisRecitatioUI:
         self._touch_active = False
         self._last_touch_ms = 0
 
+        # Transport reconciliation state
+        self._prev_idle = True       # was the engine idle last frame?
+        self._stop_was_manual = False  # keep DĒSIĪ vs PARĀTUS on next idle
+
     def init(self):
         """Initialize the UI."""
         if not HARDWARE_AVAILABLE:
@@ -712,13 +716,16 @@ class VocisRecitatioUI:
     def _on_stop(self):
         """Handle DĒSINE (stop) button press."""
         if self.audio.is_recording:
-            duration = self.audio.stop_recording()
+            self._stop_was_manual = True
+            self.audio.stop_recording()
             self.buttons['rec'].set_active(False)
             self.status_bar.set_status(Text.STATUS_STOPPED)
             self.status_bar.set_recording_time(0)
         elif self.audio.is_playing or self.audio.is_paused:
+            self._stop_was_manual = True
             self.audio.stop()
             self.buttons['play'].set_active(False)
+            self.buttons['play'].set_label(Text.BTN_PLAY)
             self.status_bar.set_status(Text.STATUS_STOPPED)
 
     def _on_play(self):
@@ -814,20 +821,46 @@ class VocisRecitatioUI:
         for btn in self.buttons.values():
             btn.release()
 
+    def _reconcile_state(self):
+        """Sync transport buttons/status to the engine's actual state.
+
+        Catches transitions the press handlers can't see — playback finishing
+        on its own, or recording auto-stopping at the duration cap.
+        """
+        is_idle = self.audio.is_idle
+        if is_idle and not self._prev_idle:
+            if 'play' in self.buttons:
+                self.buttons['play'].set_active(False)
+                self.buttons['play'].set_label(Text.BTN_PLAY)
+            if 'rec' in self.buttons:
+                self.buttons['rec'].set_active(False)
+            if self.status_bar:
+                self.status_bar.set_recording_time(0)
+                # Preserve DĒSIĪ on a manual stop; show PARĀTUS otherwise.
+                if self._stop_was_manual:
+                    self._stop_was_manual = False
+                else:
+                    self.status_bar.set_status(Text.STATUS_READY)
+        self._prev_idle = is_idle
+
     def update(self):
         """Main update loop - call frequently."""
         if not self._initialized:
             return
 
-        # Update audio level visualization
+        # Drive the engine every frame: level metering while recording AND
+        # end-of-playback detection while playing.
+        level = self.audio.update()
+
         if self.audio.is_recording:
-            level = self.audio.update()
             if self.waveform:
                 self.waveform.update(level)
-
-            # Update recording time
             if self.status_bar:
                 self.status_bar.set_recording_time(self.audio.recording_duration)
+
+        # Reconcile transport controls with the engine's actual state
+        # (resets play/rec buttons + status when playback or recording ends).
+        self._reconcile_state()
 
         # Update status blink
         if self.status_bar:
