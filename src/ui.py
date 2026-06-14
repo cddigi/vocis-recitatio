@@ -126,6 +126,11 @@ class HackerButton:
         self._active = active
         self.draw()
 
+    @property
+    def is_active(self):
+        """Whether the button is in its active/toggled state."""
+        return self._active
+
     def set_enabled(self, enabled):
         """Enable/disable button."""
         self._enabled = enabled
@@ -765,16 +770,24 @@ class VocisRecitatioUI:
                 self.status_bar.set_status(Text.STATUS_ERROR.format("Servāre nōn potuit"))
 
     def _on_slow(self):
-        """Handle TARDĒ (slow) button press."""
-        self.audio.set_speed_slow()
-        self.buttons['slow'].set_active(True)
-        self.buttons['fast'].set_active(False)
+        """Handle TARDĒ (slow) button press — toggles slow / normal speed."""
+        if self.buttons['slow'].is_active:
+            self.audio.set_speed_normal()
+            self.buttons['slow'].set_active(False)
+        else:
+            self.audio.set_speed_slow()
+            self.buttons['slow'].set_active(True)
+            self.buttons['fast'].set_active(False)
 
     def _on_fast(self):
-        """Handle CELER (fast) button press."""
-        self.audio.set_speed_fast()
-        self.buttons['fast'].set_active(True)
-        self.buttons['slow'].set_active(False)
+        """Handle CELER (fast) button press — toggles fast / normal speed."""
+        if self.buttons['fast'].is_active:
+            self.audio.set_speed_normal()
+            self.buttons['fast'].set_active(False)
+        else:
+            self.audio.set_speed_fast()
+            self.buttons['fast'].set_active(True)
+            self.buttons['slow'].set_active(False)
 
     def _on_sort(self):
         """Handle ŌRDŌ (sort) button press."""
