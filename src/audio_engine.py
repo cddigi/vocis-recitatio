@@ -314,7 +314,7 @@ class AudioEngine:
         Returns:
             Full path to saved file, or None on error
         """
-        if self._temp_buffer is None and not DEBUG:
+        if self._temp_buffer is None:
             if DEBUG:
                 print(">>> No recording to save")
             return None
