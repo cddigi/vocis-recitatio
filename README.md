@@ -18,34 +18,34 @@
                   [ HACK THE PLANET ]
 ```
 
-Voice recorder for M5Stack M5Tab5, inspired by the **Talkboy** from *Home Alone 2*,
+Voice recorder for M5Stack M5Tab5, inspired by the **Talkboy** from _Home Alone 2_,
 with a **Hackers (1995)** aesthetic and **Classical Latin** interface.
 
-> *recitātiō vōcis* — "a recitation of voice"
+> _recitātiō vōcis_ — "a recitation of voice"
 
 ## Features
 
-| Button | Latin | Meaning |
-|--------|-------|---------|
-| **SCRĪBE** | *scrībere* (to write) | Record |
-| **RECITĀ** | *recitāre* (to recite) | Play |
-| **DĒSINE** | *dēsinere* (to stop) | Stop |
-| **SERVĀ** | *servāre* (to save) | Save |
-| **TARDĒ** | *tardē* (slowly) | Slow playback |
-| **CELER** | *celer* (quickly) | Fast playback |
-| **ŌRDŌ** | *ōrdō* (order) | Sort files |
-| **DĒLĒ** | *dēlēre* (to destroy) | Delete |
+| Button     | Latin                  | Meaning       |
+| ---------- | ---------------------- | ------------- |
+| **SCRĪBE** | _scrībere_ (to write)  | Record        |
+| **RECITĀ** | _recitāre_ (to recite) | Play          |
+| **DĒSINE** | _dēsinere_ (to stop)   | Stop          |
+| **SERVĀ**  | _servāre_ (to save)    | Save          |
+| **TARDĒ**  | _tardē_ (slowly)       | Slow playback |
+| **CELER**  | _celer_ (quickly)      | Fast playback |
+| **ŌRDŌ**   | _ōrdō_ (order)         | Sort files    |
+| **DĒLĒ**   | _dēlēre_ (to destroy)  | Delete        |
 
 ## Status Messages
 
-| Status | Latin | Translation |
-|--------|-------|-------------|
-| Ready | `PARĀTUS_` | Prepared |
-| Recording | `SCRĪBŌ...` | I am writing |
-| Playing | `RECITŌ...` | I am reciting |
-| Paused | `INTERMISSIŌ` | Intermission |
-| Stopped | `DĒSIĪ` | I have stopped |
-| Saving | `SERVŌ AD DISCUM...` | Saving to disk |
+| Status    | Latin                | Translation    |
+| --------- | -------------------- | -------------- |
+| Ready     | `PARĀTUS_`           | Prepared       |
+| Recording | `SCRĪBŌ...`          | I am writing   |
+| Playing   | `RECITŌ...`          | I am reciting  |
+| Paused    | `INTERMISSIŌ`        | Intermission   |
+| Stopped   | `DĒSIĪ`              | I have stopped |
+| Saving    | `SERVŌ AD DISCUM...` | Saving to disk |
 
 ## Hardware Requirements
 
@@ -86,6 +86,7 @@ vocis-recitatio/
 ## Recordings
 
 Recordings are saved to `/sd/vocis-recitatio/recitationes/` as WAV files:
+
 - Format: 16-bit PCM
 - Sample rate: 16kHz
 - Channels: Mono
@@ -95,6 +96,7 @@ Filenames use the format: `vocis_YYYYMMDD_HHMMSS.wav`
 ## UI Design
 
 The interface combines **Hackers (1995)** cyberpunk aesthetic with **Classical Latin**:
+
 - Green phosphor terminal text on black
 - Neon cyan, magenta, and yellow accents
 - Matrix-style waveform visualization
@@ -105,9 +107,10 @@ The interface combines **Hackers (1995)** cyberpunk aesthetic with **Classical L
 ## Speed Control
 
 Like the original Talkboy, variable-speed playback:
-- **TARDĒ (0.5x)** — *vōx gravis* (deep voice)
+
+- **TARDĒ (0.5x)** — _vōx gravis_ (deep voice)
 - **Normal (1.0x)** — Standard speed
-- **CELER (1.5x)** — *vōx acūta* (high voice)
+- **CELER (1.5x)** — _vōx acūta_ (high voice)
 
 ## API Reference
 
@@ -141,7 +144,7 @@ files.delete_recording(rec)   # Dēlet recitātiōnem
 - **vōx, vōcis** (f.) — voice, sound
 - **recitātiō, recitātiōnis** (f.) — a reading aloud, recitation
 - **vōcis** — genitive singular, "of voice"
-- **recitātiō vōcis** — "a recitation of voice" (genitive of means)
+- **recitātiō vōcis** — "a recitation of voice" (objective genitive)
 
 ## License
 
@@ -156,7 +159,7 @@ See [UNLICENSE](UNLICENSE) for full details.
 ## Credits
 
 - Inspired by the [Talkboy](https://en.wikipedia.org/wiki/Talkboy) by Tiger Electronics
-- Visual aesthetic from *Hackers* (1995) directed by Iain Softley
+- Visual aesthetic from _Hackers_ (1995) directed by Iain Softley
 - Built for [M5Stack M5Tab5](https://shop.m5stack.com/products/m5stack-tab5-iot-development-kit-esp32-p4)
 - Launcher integration via [bmorcelli/Launcher](https://github.com/bmorcelli/Launcher)
 
@@ -168,7 +171,8 @@ See [UNLICENSE](UNLICENSE) for full details.
 
 ---
 
-*"Mess with the best, die like the rest."* — Hackers (1995)
+_"Mess with the best, die like the rest."_ — Hackers (1995)
 
-*"Certā cum optimīs, morere cum cēterīs."* — (rough Latin equivalent)
+_"Certā cum optimīs, morere cum cēterīs."_ — (rough Latin equivalent)
+
 # vocis-recitatio
