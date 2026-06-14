@@ -65,17 +65,16 @@ with a **Hackers (1995)** aesthetic and **Classical Latin** interface.
 ### Direct Flash
 
 1. Install [UIFlow2](https://uiflow2.m5stack.com/) on your M5Tab5
-2. Copy all files to the device (keep `boot.py` and `src/` together)
-3. Run `boot.py`
+2. Copy all files to the device (keep `manifest.json` and `src/` together)
+3. Run `src/main.py`
 
 ## File Structure
 
 ```
 vocis-recitatio/
-├── boot.py              # Launcher entry shim (puts src/ on sys.path)
-├── manifest.json        # Launcher metadata ("main": "boot.py")
+├── manifest.json        # Launcher metadata ("main": "src/main.py")
 ├── src/
-│   ├── main.py          # App entry point
+│   ├── main.py          # App entry point (Launcher "main")
 │   ├── vocis_recitatio.py  # Main application class
 │   ├── audio_engine.py  # Recording/playback engine
 │   ├── ui.py            # Hackers-style touch UI

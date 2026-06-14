@@ -31,9 +31,14 @@ simplicity over enterprise patterns. Don't over-engineer.
 
 ```
 vocis-recitatio/
-├── boot.py              # Launcher entry shim — puts src/ on sys.path,
-│                        #   then runs src/main.py (manifest "main": "boot.py")
-├── manifest.json        # Launcher metadata
+├── manifest.json        # Launcher metadata ("main": "src/main.py")
+├── src/
+│   ├── main.py          # App entry point (Launcher "main")
+│   ├── vocis_recitatio.py  # Main application class
+│   ├── audio_engine.py  # Recording/playback engine
+│   ├── ui.py            # Hackers-style touch UI
+│   ├── file_manager.py  # SD card file management
+│   └── config.py        # Colors, layout, settings
 ├── docs/
 │   └── ux-mockup.svg    # UX mockup (1280x720 CRT-terminal layout)
 ├── firmware/            # gitignored — local build artifact, not committed
@@ -42,10 +47,10 @@ vocis-recitatio/
 └── README.md
 ```
 
-The app code lives in `src/`; `boot.py` at the repo root is just the Launcher
-entry shim (it adds `src/` to `sys.path` so the flat sibling imports keep
-working, then calls `src/main.py`). Don't move `boot.py` into `src/` — the
-Launcher and `manifest.json` expect it at the root.
+The app code lives in `src/`, and `src/main.py` is the entry point — the
+Launcher runs it directly via `manifest.json` (`"main": "src/main.py"`). The
+modules import each other as flat siblings, so `src/` must be on `sys.path`
+when `main.py` runs (i.e. the Launcher must run it from within the app folder).
 
 Keep responsibilities in their existing module — audio logic in
 `src/audio_engine.py`, all drawing/touch in `src/ui.py`, SD operations in
