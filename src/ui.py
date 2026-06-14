@@ -799,6 +799,14 @@ class VocisRecitatioUI:
             Text.BTN_FAST, on_press=self._on_fast
         )
 
+        # Volume controls (SONITUS): − / + flanking a live level readout
+        self.buttons['vol_down'] = HackerButton(
+            270, button_y - 80, 60, speed_btn_height, "-", on_press=self._on_vol_down
+        )
+        self.buttons['vol_up'] = HackerButton(
+            410, button_y - 80, 60, speed_btn_height, "+", on_press=self._on_vol_up
+        )
+
         # File controls
         self.buttons['sort'] = HackerButton(
             Layout.LIST_X, button_y, 120, Layout.BUTTON_HEIGHT,
@@ -819,6 +827,34 @@ class VocisRecitatioUI:
         # Draw all buttons
         for btn in self.buttons.values():
             btn.draw()
+
+        self._draw_volume()
+
+    def _draw_volume(self):
+        """Draw the SONITUS label and current volume between the −/+ buttons."""
+        if not HARDWARE_AVAILABLE:
+            return
+        vol_y = Layout.BUTTON_Y - 80
+        # Clear the readout area between the buttons, then repaint.
+        Widgets.fillRect(332, vol_y - 20, 78, 80, Colors.BG_PRIMARY)
+        Widgets.Label(
+            Text.LBL_VOLUME, 336, vol_y - 18, 0.6,
+            text_color=Colors.PHOSPHOR_DIM, bg_color=Colors.BG_PRIMARY
+        )
+        Widgets.Label(
+            str(self.audio.volume), 352, vol_y + 18, 1.0,
+            text_color=Colors.NEON_CYAN, bg_color=Colors.BG_PRIMARY
+        )
+
+    def _on_vol_down(self):
+        """Lower the volume (SONITUS) by 10 (engine clamps to 0)."""
+        self.audio.volume = self.audio.volume - 10
+        self._draw_volume()
+
+    def _on_vol_up(self):
+        """Raise the volume (SONITUS) by 10 (engine clamps to 100)."""
+        self.audio.volume = self.audio.volume + 10
+        self._draw_volume()
 
     def _on_rec(self):
         """Handle SCRĪBE (record) button press."""
@@ -938,6 +974,7 @@ class VocisRecitatioUI:
             self.status_bar.draw()
         for btn in self.buttons.values():
             btn.draw()
+        self._draw_volume()
 
     def _on_file_select(self, recording):
         """Handle file selection in list."""

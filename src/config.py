@@ -203,6 +203,9 @@ class Text:
     BTN_YES = "ITA"        # Yes (lit. "thus/so")
     BTN_NO = "NŌN"         # No (lit. "not")
 
+    # Control labels
+    LBL_VOLUME = "SONITUS"  # "a sound" — volume level label
+
     # File info
     FILE_INFO = "{name} | {size} | {date}"
     NO_FILES = "[ NŪLLAE RECITĀTIŌNĒS ]"  # No recordings
