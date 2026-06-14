@@ -539,6 +539,107 @@ class StatusBar:
             self.draw()
 
 
+class ConfirmDialog:
+    """
+    Modal yes/no confirmation overlay (ITA / NŌN).
+
+    Used to guard destructive actions like delete. While active it swallows
+    all touches so nothing behind it can be triggered.
+    """
+
+    # Centered modal box geometry
+    W = 600
+    H = 240
+
+    def __init__(self):
+        self._active = False
+        self._message = ""
+        self._on_confirm = None
+        self._on_close = None
+
+        self.x = (SCREEN_WIDTH - self.W) // 2
+        self.y = (SCREEN_HEIGHT - self.H) // 2
+
+        self._yes_btn = None
+        self._no_btn = None
+
+    @property
+    def active(self):
+        return self._active
+
+    def show(self, message, on_confirm, on_close=None):
+        """Open the dialog. on_confirm runs on ITA; on_close runs either way."""
+        self._active = True
+        self._message = message
+        self._on_confirm = on_confirm
+        self._on_close = on_close
+
+        btn_w, btn_h = 160, 70
+        btn_y = self.y + self.H - btn_h - 25
+        self._yes_btn = HackerButton(
+            self.x + 80, btn_y, btn_w, btn_h, Text.BTN_YES, on_press=self._confirm
+        )
+        self._no_btn = HackerButton(
+            self.x + self.W - btn_w - 80, btn_y, btn_w, btn_h,
+            Text.BTN_NO, on_press=self._cancel
+        )
+        self.draw()
+
+    def draw(self):
+        if not HARDWARE_AVAILABLE or not self._active:
+            return
+
+        # Modal box with warning-yellow border
+        Widgets.fillRect(self.x, self.y, self.W, self.H, Colors.BG_SECONDARY)
+        Widgets.drawRect(self.x, self.y, self.W, self.H, Colors.NEON_YELLOW)
+        Widgets.drawRect(
+            self.x + 1, self.y + 1, self.W - 2, self.H - 2, Colors.NEON_YELLOW
+        )
+
+        # Message (truncate to keep it on one line)
+        msg = self._message
+        if len(msg) > 46:
+            msg = msg[:43] + "..."
+        Widgets.Label(
+            msg, self.x + 30, self.y + 45, 0.9,
+            text_color=Colors.PHOSPHOR_BRIGHT, bg_color=Colors.BG_SECONDARY
+        )
+
+        self._yes_btn.draw()
+        self._no_btn.draw()
+
+    def _confirm(self):
+        on_confirm, on_close = self._on_confirm, self._on_close
+        self._active = False
+        self._on_confirm = self._on_close = None
+        if on_confirm:
+            on_confirm()
+        if on_close:
+            on_close()
+
+    def _cancel(self):
+        on_close = self._on_close
+        self._active = False
+        self._on_confirm = self._on_close = None
+        if on_close:
+            on_close()
+
+    def check_touch(self, touch_x, touch_y):
+        """Route touches to the dialog buttons; swallow everything else."""
+        if not self._active:
+            return False
+        self._yes_btn.check_touch(touch_x, touch_y)
+        if self._active:  # _confirm may have closed it
+            self._no_btn.check_touch(touch_x, touch_y)
+        return True
+
+    def release(self):
+        if self._yes_btn:
+            self._yes_btn.release()
+        if self._no_btn:
+            self._no_btn.release()
+
+
 class VocisRecitatioUI:
     """
     Main UI controller for Vōcis Recitātiō application.
@@ -556,6 +657,7 @@ class VocisRecitatioUI:
         self.file_list = None
         self.status_bar = None
         self.buttons = {}
+        self.dialog = ConfirmDialog()
 
         self._initialized = False
 
@@ -803,14 +905,39 @@ class VocisRecitatioUI:
         self.refresh_file_list()
 
     def _on_delete(self):
-        """Handle DĒLĒ (delete) button press."""
+        """Handle DĒLĒ (delete) button press — confirm before deleting."""
         selected = self.file_list.get_selected()
-        if selected:
-            if self.files.delete_recording(selected):
-                self.refresh_file_list()
-                self.status_bar.set_status(Text.STATUS_READY)
-            else:
-                self.status_bar.set_status(Text.STATUS_ERROR.format("Dēlēre nōn potuit"))
+        if not selected:
+            return
+        message = Text.CONFIRM_DELETE.format(filename=selected.name)
+        self.dialog.show(
+            message,
+            on_confirm=lambda: self._do_delete(selected),
+            on_close=self._redraw_after_dialog,
+        )
+
+    def _do_delete(self, recording):
+        """Delete a recording after the user confirms (ITA)."""
+        if self.files.delete_recording(recording):
+            self.refresh_file_list()
+            self.status_bar.set_status(Text.STATUS_READY)
+        else:
+            self.status_bar.set_status(Text.STATUS_ERROR.format("Dēlēre nōn potuit"))
+
+    def _redraw_after_dialog(self):
+        """Repaint the main screen after the modal dialog closes."""
+        if not HARDWARE_AVAILABLE:
+            return
+        Widgets.fillScreen(Colors.BG_PRIMARY)
+        self._draw_header()
+        if self.waveform:
+            self.waveform.draw_background()
+        if self.file_list:
+            self.file_list.draw()
+        if self.status_bar:
+            self.status_bar.draw()
+        for btn in self.buttons.values():
+            btn.draw()
 
     def _on_file_select(self, recording):
         """Handle file selection in list."""
@@ -830,6 +957,11 @@ class VocisRecitatioUI:
 
     def handle_touch(self, x, y):
         """Handle touch event."""
+        # A modal dialog gets exclusive control of touch input.
+        if self.dialog.active:
+            self.dialog.check_touch(x, y)
+            return True
+
         # Check buttons
         for btn in self.buttons.values():
             if btn.check_touch(x, y):
@@ -843,6 +975,7 @@ class VocisRecitatioUI:
 
     def handle_touch_release(self):
         """Handle touch release."""
+        self.dialog.release()
         for btn in self.buttons.values():
             btn.release()
 
