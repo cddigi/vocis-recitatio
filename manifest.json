@@ -21,6 +21,14 @@
     "Touch UI with Latin commands",
     "File sorting and management"
   ],
-  "repository": "https://github.com/YOUR_USERNAME/vocis-recitatio",
-  "keywords": ["audio", "recorder", "voice", "latin", "hackers", "vocis", "recitatio"]
+  "repository": "https://github.com/cddigi/vocis-recitatio",
+  "keywords": [
+    "audio",
+    "recorder",
+    "voice",
+    "latin",
+    "hackers",
+    "vocis",
+    "recitatio"
+  ]
 }

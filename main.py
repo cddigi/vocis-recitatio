@@ -13,7 +13,7 @@ Audio: ES8388 codec, ES7210 AEC, dual microphones
 This is free and unencumbered software released into the public domain.
 See UNLICENSE for details.
 
-Repository: https://github.com/YOUR_USERNAME/vocis-recitatio
+Repository: https://github.com/cddigi/vocis-recitatio
 License: UNLICENSE (Public Domain)
 """
 
