@@ -546,9 +546,10 @@ class VocisRecitatioUI:
     Orchestrates all UI components with Hackers (1995) aesthetic.
     """
 
-    def __init__(self, audio_engine, file_manager):
+    def __init__(self, audio_engine, file_manager, on_exit=None):
         self.audio = audio_engine
         self.files = file_manager
+        self._on_exit = on_exit  # called by the EXĪ button to leave the app
 
         # UI Components
         self.waveform = None
@@ -707,6 +708,12 @@ class VocisRecitatioUI:
             Text.BTN_DELETE, on_press=self._on_delete
         )
 
+        # Exit button (EXĪ) — top-right of the header, returns to Launcher
+        self.buttons['exit'] = HackerButton(
+            SCREEN_WIDTH - 110, 10, 90, 40,
+            Text.BTN_EXIT, on_press=self._on_exit_pressed
+        )
+
         # Draw all buttons
         for btn in self.buttons.values():
             btn.draw()
@@ -809,6 +816,11 @@ class VocisRecitatioUI:
         """Handle file selection in list."""
         if DEBUG:
             print(f">>> Selected: {recording.name}")
+
+    def _on_exit_pressed(self):
+        """Handle EXĪ (exit) button — hand back to the caller to leave the app."""
+        if self._on_exit:
+            self._on_exit()
 
     def refresh_file_list(self):
         """Refresh the file list from disk."""
