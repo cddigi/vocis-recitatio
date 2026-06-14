@@ -362,11 +362,29 @@ class AudioEngine:
             return True
 
         try:
-            # Calculate effective sample rate for speed
+            # Calculate effective sample rate for speed.
+            # Variable speed = changing the PLAYBACK sample rate (no DSP/pitch
+            # shift), exactly like play_buffer(). The WAV header stores 16 kHz,
+            # so playing via play(file://...) would ignore speed entirely; we
+            # read the raw PCM instead and feed it at effective_rate.
             effective_rate = int(Audio.SAMPLE_RATE * self._speed)
 
-            self._player.play(
-                f"file://{filepath}",
+            # Skip the fixed 44-byte RIFF/fmt /data header written by
+            # _write_wav_header, leaving just the PCM samples.
+            WAV_HEADER_SIZE = 44
+
+            # Read the whole clip into RAM. Like play_buffer (which already
+            # holds the full PCM buffer), this trades memory for simplicity;
+            # a 5-min 16 kHz mono 16-bit clip is ~9.6 MB, fine on PSRAM.
+            with open(filepath, 'rb') as f:
+                f.read(WAV_HEADER_SIZE)
+                pcm = f.read()
+
+            self._player.play_raw(
+                pcm,
+                sample=effective_rate,
+                stereo=Audio.STEREO,
+                bits=Audio.BIT_DEPTH,
                 volume=self._volume,
                 sync=False  # Non-blocking
             )
@@ -374,7 +392,7 @@ class AudioEngine:
             self._set_state(AudioState.PLAYING)
 
             if DEBUG:
-                print(f">>> Playing: {filepath} @ {self._speed}x")
+                print(f">>> Playing: {filepath} @ {self._speed}x (rate={effective_rate})")
             return True
 
         except Exception as e:
