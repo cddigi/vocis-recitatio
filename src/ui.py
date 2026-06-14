@@ -22,6 +22,11 @@ except ImportError:
         print(">>> WARNING: Display hardware not available")
 
 
+def _now_ms():
+    """Millisecond clock (MicroPython ticks_ms, CPython fallback)."""
+    return time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
+
+
 class HackerButton:
     """
     Custom button with Hackers (1995) terminal aesthetic.
@@ -522,7 +527,7 @@ class StatusBar:
 
     def update_blink(self):
         """Update cursor blink state."""
-        now = time.ticks_ms() if hasattr(time, 'ticks_ms') else int(time.time() * 1000)
+        now = _now_ms()
         if now - self._last_blink > Timing.STATUS_BLINK_MS:
             self._blink_state = not self._blink_state
             self._last_blink = now
@@ -547,6 +552,10 @@ class VocisRecitatioUI:
         self.buttons = {}
 
         self._initialized = False
+
+        # Touch edge-detection + debounce state (fire on_press once per tap)
+        self._touch_active = False
+        self._last_touch_ms = 0
 
     def init(self):
         """Initialize the UI."""
@@ -824,16 +833,21 @@ class VocisRecitatioUI:
         if self.status_bar:
             self.status_bar.update_blink()
 
-        # Check for touch
+        # Check for touch — edge-triggered + debounced so one tap fires
+        # on_press exactly once (the loop polls every WAVE_UPDATE_MS).
         if HARDWARE_AVAILABLE:
             try:
                 M5.update()
-                touch_count = M5.Touch.getCount()
-                if touch_count > 0:
-                    x = M5.Touch.getX()
-                    y = M5.Touch.getY()
-                    self.handle_touch(x, y)
+                if M5.Touch.getCount() > 0:
+                    if not self._touch_active:
+                        now = _now_ms()
+                        if now - self._last_touch_ms >= Timing.BUTTON_DEBOUNCE_MS:
+                            self._touch_active = True
+                            self._last_touch_ms = now
+                            self.handle_touch(M5.Touch.getX(), M5.Touch.getY())
                 else:
-                    self.handle_touch_release()
+                    if self._touch_active:
+                        self._touch_active = False
+                        self.handle_touch_release()
             except Exception:
                 pass
