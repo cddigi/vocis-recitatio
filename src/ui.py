@@ -22,6 +22,17 @@ except ImportError:
         print(">>> WARNING: Display hardware not available")
 
 
+def _now_ms():
+    """Millisecond clock (MicroPython ticks_ms, CPython fallback)."""
+    return time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
+
+
+def _fmt_mmss(seconds):
+    """Format a number of seconds as M:SS."""
+    s = int(seconds)
+    return "{}:{:02d}".format(s // 60, s % 60)
+
+
 class HackerButton:
     """
     Custom button with Hackers (1995) terminal aesthetic.
@@ -120,6 +131,11 @@ class HackerButton:
         """Set active state (for toggles like REC)."""
         self._active = active
         self.draw()
+
+    @property
+    def is_active(self):
+        """Whether the button is in its active/toggled state."""
+        return self._active
 
     def set_enabled(self, enabled):
         """Enable/disable button."""
@@ -269,6 +285,36 @@ class WaveformDisplay:
         self._buffer = [0] * self._buffer_size
         self._buffer_pos = 0
         self.draw_background()
+
+    def draw_progress(self, fraction, elapsed_s, total_s):
+        """Draw a playback progress bar with elapsed / total time."""
+        if not HARDWARE_AVAILABLE:
+            return
+
+        self.draw_background()
+
+        margin = 40
+        bar_x = self.x + margin
+        bar_w = self.width - margin * 2
+        bar_h = 24
+        bar_y = self.y + self.height // 2 - bar_h // 2
+
+        # Track + fill
+        Widgets.drawRect(bar_x, bar_y, bar_w, bar_h, Colors.PHOSPHOR_DIM)
+        if fraction < 0:
+            fraction = 0
+        elif fraction > 1:
+            fraction = 1
+        fill_w = int(bar_w * fraction)
+        if fill_w > 0:
+            Widgets.fillRect(bar_x, bar_y, fill_w, bar_h, Colors.WAVE_PRIMARY)
+
+        # Elapsed / total time
+        label = "{} / {}".format(_fmt_mmss(elapsed_s), _fmt_mmss(total_s))
+        Widgets.Label(
+            label, bar_x, bar_y - 32, 0.8,
+            text_color=Colors.NEON_CYAN, bg_color=Colors.BG_TERMINAL
+        )
 
 
 class FileListView:
@@ -522,11 +568,112 @@ class StatusBar:
 
     def update_blink(self):
         """Update cursor blink state."""
-        now = time.ticks_ms() if hasattr(time, 'ticks_ms') else int(time.time() * 1000)
+        now = _now_ms()
         if now - self._last_blink > Timing.STATUS_BLINK_MS:
             self._blink_state = not self._blink_state
             self._last_blink = now
             self.draw()
+
+
+class ConfirmDialog:
+    """
+    Modal yes/no confirmation overlay (ITA / NŌN).
+
+    Used to guard destructive actions like delete. While active it swallows
+    all touches so nothing behind it can be triggered.
+    """
+
+    # Centered modal box geometry
+    W = 600
+    H = 240
+
+    def __init__(self):
+        self._active = False
+        self._message = ""
+        self._on_confirm = None
+        self._on_close = None
+
+        self.x = (SCREEN_WIDTH - self.W) // 2
+        self.y = (SCREEN_HEIGHT - self.H) // 2
+
+        self._yes_btn = None
+        self._no_btn = None
+
+    @property
+    def active(self):
+        return self._active
+
+    def show(self, message, on_confirm, on_close=None):
+        """Open the dialog. on_confirm runs on ITA; on_close runs either way."""
+        self._active = True
+        self._message = message
+        self._on_confirm = on_confirm
+        self._on_close = on_close
+
+        btn_w, btn_h = 160, 70
+        btn_y = self.y + self.H - btn_h - 25
+        self._yes_btn = HackerButton(
+            self.x + 80, btn_y, btn_w, btn_h, Text.BTN_YES, on_press=self._confirm
+        )
+        self._no_btn = HackerButton(
+            self.x + self.W - btn_w - 80, btn_y, btn_w, btn_h,
+            Text.BTN_NO, on_press=self._cancel
+        )
+        self.draw()
+
+    def draw(self):
+        if not HARDWARE_AVAILABLE or not self._active:
+            return
+
+        # Modal box with warning-yellow border
+        Widgets.fillRect(self.x, self.y, self.W, self.H, Colors.BG_SECONDARY)
+        Widgets.drawRect(self.x, self.y, self.W, self.H, Colors.NEON_YELLOW)
+        Widgets.drawRect(
+            self.x + 1, self.y + 1, self.W - 2, self.H - 2, Colors.NEON_YELLOW
+        )
+
+        # Message (truncate to keep it on one line)
+        msg = self._message
+        if len(msg) > 46:
+            msg = msg[:43] + "..."
+        Widgets.Label(
+            msg, self.x + 30, self.y + 45, 0.9,
+            text_color=Colors.PHOSPHOR_BRIGHT, bg_color=Colors.BG_SECONDARY
+        )
+
+        self._yes_btn.draw()
+        self._no_btn.draw()
+
+    def _confirm(self):
+        on_confirm, on_close = self._on_confirm, self._on_close
+        self._active = False
+        self._on_confirm = self._on_close = None
+        if on_confirm:
+            on_confirm()
+        if on_close:
+            on_close()
+
+    def _cancel(self):
+        on_close = self._on_close
+        self._active = False
+        self._on_confirm = self._on_close = None
+        if on_close:
+            on_close()
+
+    def check_touch(self, touch_x, touch_y):
+        """Route touches to the dialog buttons; swallow everything else."""
+        if not self._active:
+            return False
+        self._yes_btn.check_touch(touch_x, touch_y)
+        if self._active:  # _confirm may have closed it
+            self._no_btn.check_touch(touch_x, touch_y)
+        return True
+
+    def release(self):
+        if self._yes_btn:
+            self._yes_btn.release()
+        if self._no_btn:
+            self._no_btn.release()
 
 
 class VocisRecitatioUI:
@@ -536,17 +683,27 @@ class VocisRecitatioUI:
     Orchestrates all UI components with Hackers (1995) aesthetic.
     """
 
-    def __init__(self, audio_engine, file_manager):
+    def __init__(self, audio_engine, file_manager, on_exit=None):
         self.audio = audio_engine
         self.files = file_manager
+        self._on_exit = on_exit  # called by the EXĪ button to leave the app
 
         # UI Components
         self.waveform = None
         self.file_list = None
         self.status_bar = None
         self.buttons = {}
+        self.dialog = ConfirmDialog()
 
         self._initialized = False
+
+        # Touch edge-detection + debounce state (fire on_press once per tap)
+        self._touch_active = False
+        self._last_touch_ms = 0
+
+        # Transport reconciliation state
+        self._prev_idle = True       # was the engine idle last frame?
+        self._stop_was_manual = False  # keep DĒSIĪ vs PARĀTUS on next idle
 
     def init(self):
         """Initialize the UI."""
@@ -678,6 +835,14 @@ class VocisRecitatioUI:
             Text.BTN_FAST, on_press=self._on_fast
         )
 
+        # Volume controls (SONITUS): − / + flanking a live level readout
+        self.buttons['vol_down'] = HackerButton(
+            270, button_y - 80, 60, speed_btn_height, "-", on_press=self._on_vol_down
+        )
+        self.buttons['vol_up'] = HackerButton(
+            410, button_y - 80, 60, speed_btn_height, "+", on_press=self._on_vol_up
+        )
+
         # File controls
         self.buttons['sort'] = HackerButton(
             Layout.LIST_X, button_y, 120, Layout.BUTTON_HEIGHT,
@@ -689,9 +854,43 @@ class VocisRecitatioUI:
             Text.BTN_DELETE, on_press=self._on_delete
         )
 
+        # Exit button (EXĪ) — top-right of the header, returns to Launcher
+        self.buttons['exit'] = HackerButton(
+            SCREEN_WIDTH - 110, 10, 90, 40,
+            Text.BTN_EXIT, on_press=self._on_exit_pressed
+        )
+
         # Draw all buttons
         for btn in self.buttons.values():
             btn.draw()
+
+        self._draw_volume()
+
+    def _draw_volume(self):
+        """Draw the SONITUS label and current volume between the −/+ buttons."""
+        if not HARDWARE_AVAILABLE:
+            return
+        vol_y = Layout.BUTTON_Y - 80
+        # Clear the readout area between the buttons, then repaint.
+        Widgets.fillRect(332, vol_y - 20, 78, 80, Colors.BG_PRIMARY)
+        Widgets.Label(
+            Text.LBL_VOLUME, 336, vol_y - 18, 0.6,
+            text_color=Colors.PHOSPHOR_DIM, bg_color=Colors.BG_PRIMARY
+        )
+        Widgets.Label(
+            str(self.audio.volume), 352, vol_y + 18, 1.0,
+            text_color=Colors.NEON_CYAN, bg_color=Colors.BG_PRIMARY
+        )
+
+    def _on_vol_down(self):
+        """Lower the volume (SONITUS) by 10 (engine clamps to 0)."""
+        self.audio.volume = self.audio.volume - 10
+        self._draw_volume()
+
+    def _on_vol_up(self):
+        """Raise the volume (SONITUS) by 10 (engine clamps to 100)."""
+        self.audio.volume = self.audio.volume + 10
+        self._draw_volume()
 
     def _on_rec(self):
         """Handle SCRĪBE (record) button press."""
@@ -703,13 +902,16 @@ class VocisRecitatioUI:
     def _on_stop(self):
         """Handle DĒSINE (stop) button press."""
         if self.audio.is_recording:
-            duration = self.audio.stop_recording()
+            self._stop_was_manual = True
+            self.audio.stop_recording()
             self.buttons['rec'].set_active(False)
             self.status_bar.set_status(Text.STATUS_STOPPED)
             self.status_bar.set_recording_time(0)
         elif self.audio.is_playing or self.audio.is_paused:
+            self._stop_was_manual = True
             self.audio.stop()
             self.buttons['play'].set_active(False)
+            self.buttons['play'].set_label(Text.BTN_PLAY)
             self.status_bar.set_status(Text.STATUS_STOPPED)
 
     def _on_play(self):
@@ -749,16 +951,24 @@ class VocisRecitatioUI:
                 self.status_bar.set_status(Text.STATUS_ERROR.format("Servāre nōn potuit"))
 
     def _on_slow(self):
-        """Handle TARDĒ (slow) button press."""
-        self.audio.set_speed_slow()
-        self.buttons['slow'].set_active(True)
-        self.buttons['fast'].set_active(False)
+        """Handle TARDĒ (slow) button press — toggles slow / normal speed."""
+        if self.buttons['slow'].is_active:
+            self.audio.set_speed_normal()
+            self.buttons['slow'].set_active(False)
+        else:
+            self.audio.set_speed_slow()
+            self.buttons['slow'].set_active(True)
+            self.buttons['fast'].set_active(False)
 
     def _on_fast(self):
-        """Handle CELER (fast) button press."""
-        self.audio.set_speed_fast()
-        self.buttons['fast'].set_active(True)
-        self.buttons['slow'].set_active(False)
+        """Handle CELER (fast) button press — toggles fast / normal speed."""
+        if self.buttons['fast'].is_active:
+            self.audio.set_speed_normal()
+            self.buttons['fast'].set_active(False)
+        else:
+            self.audio.set_speed_fast()
+            self.buttons['fast'].set_active(True)
+            self.buttons['slow'].set_active(False)
 
     def _on_sort(self):
         """Handle ŌRDŌ (sort) button press."""
@@ -767,19 +977,50 @@ class VocisRecitatioUI:
         self.refresh_file_list()
 
     def _on_delete(self):
-        """Handle DĒLĒ (delete) button press."""
+        """Handle DĒLĒ (delete) button press — confirm before deleting."""
         selected = self.file_list.get_selected()
-        if selected:
-            if self.files.delete_recording(selected):
-                self.refresh_file_list()
-                self.status_bar.set_status(Text.STATUS_READY)
-            else:
-                self.status_bar.set_status(Text.STATUS_ERROR.format("Dēlēre nōn potuit"))
+        if not selected:
+            return
+        message = Text.CONFIRM_DELETE.format(filename=selected.name)
+        self.dialog.show(
+            message,
+            on_confirm=lambda: self._do_delete(selected),
+            on_close=self._redraw_after_dialog,
+        )
+
+    def _do_delete(self, recording):
+        """Delete a recording after the user confirms (ITA)."""
+        if self.files.delete_recording(recording):
+            self.refresh_file_list()
+            self.status_bar.set_status(Text.STATUS_READY)
+        else:
+            self.status_bar.set_status(Text.STATUS_ERROR.format("Dēlēre nōn potuit"))
+
+    def _redraw_after_dialog(self):
+        """Repaint the main screen after the modal dialog closes."""
+        if not HARDWARE_AVAILABLE:
+            return
+        Widgets.fillScreen(Colors.BG_PRIMARY)
+        self._draw_header()
+        if self.waveform:
+            self.waveform.draw_background()
+        if self.file_list:
+            self.file_list.draw()
+        if self.status_bar:
+            self.status_bar.draw()
+        for btn in self.buttons.values():
+            btn.draw()
+        self._draw_volume()
 
     def _on_file_select(self, recording):
         """Handle file selection in list."""
         if DEBUG:
             print(f">>> Selected: {recording.name}")
+
+    def _on_exit_pressed(self):
+        """Handle EXĪ (exit) button — hand back to the caller to leave the app."""
+        if self._on_exit:
+            self._on_exit()
 
     def refresh_file_list(self):
         """Refresh the file list from disk."""
@@ -789,6 +1030,11 @@ class VocisRecitatioUI:
 
     def handle_touch(self, x, y):
         """Handle touch event."""
+        # A modal dialog gets exclusive control of touch input.
+        if self.dialog.active:
+            self.dialog.check_touch(x, y)
+            return True
+
         # Check buttons
         for btn in self.buttons.values():
             if btn.check_touch(x, y):
@@ -802,38 +1048,80 @@ class VocisRecitatioUI:
 
     def handle_touch_release(self):
         """Handle touch release."""
+        self.dialog.release()
         for btn in self.buttons.values():
             btn.release()
+
+    def _reconcile_state(self):
+        """Sync transport buttons/status to the engine's actual state.
+
+        Catches transitions the press handlers can't see — playback finishing
+        on its own, or recording auto-stopping at the duration cap.
+        """
+        is_idle = self.audio.is_idle
+        if is_idle and not self._prev_idle:
+            if 'play' in self.buttons:
+                self.buttons['play'].set_active(False)
+                self.buttons['play'].set_label(Text.BTN_PLAY)
+            if 'rec' in self.buttons:
+                self.buttons['rec'].set_active(False)
+            if self.waveform:
+                self.waveform.clear()  # wipe leftover bars / progress bar
+            if self.status_bar:
+                self.status_bar.set_recording_time(0)
+                # Preserve DĒSIĪ on a manual stop; show PARĀTUS otherwise.
+                if self._stop_was_manual:
+                    self._stop_was_manual = False
+                else:
+                    self.status_bar.set_status(Text.STATUS_READY)
+        self._prev_idle = is_idle
 
     def update(self):
         """Main update loop - call frequently."""
         if not self._initialized:
             return
 
-        # Update audio level visualization
+        # Drive the engine every frame: level metering while recording AND
+        # end-of-playback detection while playing.
+        level = self.audio.update()
+
         if self.audio.is_recording:
-            level = self.audio.update()
             if self.waveform:
                 self.waveform.update(level)
-
-            # Update recording time
             if self.status_bar:
                 self.status_bar.set_recording_time(self.audio.recording_duration)
+
+        # Reconcile transport controls with the engine's actual state
+        # (resets play/rec buttons + status when playback or recording ends).
+        self._reconcile_state()
+
+        # Playback progress bar (waveform area is otherwise idle while playing)
+        if (self.audio.is_playing or self.audio.is_paused) and self.waveform:
+            self.waveform.draw_progress(
+                self.audio.playback_fraction,
+                self.audio.playback_elapsed_s,
+                self.audio.playback_total_s,
+            )
 
         # Update status blink
         if self.status_bar:
             self.status_bar.update_blink()
 
-        # Check for touch
+        # Check for touch — edge-triggered + debounced so one tap fires
+        # on_press exactly once (the loop polls every WAVE_UPDATE_MS).
         if HARDWARE_AVAILABLE:
             try:
                 M5.update()
-                touch_count = M5.Touch.getCount()
-                if touch_count > 0:
-                    x = M5.Touch.getX()
-                    y = M5.Touch.getY()
-                    self.handle_touch(x, y)
+                if M5.Touch.getCount() > 0:
+                    if not self._touch_active:
+                        now = _now_ms()
+                        if now - self._last_touch_ms >= Timing.BUTTON_DEBOUNCE_MS:
+                            self._touch_active = True
+                            self._last_touch_ms = now
+                            self.handle_touch(M5.Touch.getX(), M5.Touch.getY())
                 else:
-                    self.handle_touch_release()
+                    if self._touch_active:
+                        self._touch_active = False
+                        self.handle_touch_release()
             except Exception:
                 pass

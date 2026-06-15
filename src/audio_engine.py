@@ -65,6 +65,12 @@ class AudioEngine:
         self._speed = Audio.SPEED_NORMAL
         self._current_sample_rate = Audio.SAMPLE_RATE
 
+        # Playback progress (wall-clock). Sample-rate playback is non-blocking,
+        # so we time it ourselves to detect the end and drive the progress bar.
+        self._playback_start_ms = 0
+        self._playback_accum_s = 0.0
+        self._playback_total_s = 0.0
+
         # Temporary buffer for unsaved recording
         self._temp_buffer = None
 
@@ -97,6 +103,53 @@ class AudioEngine:
             self._state = new_state
             if self._on_state_change:
                 self._on_state_change(new_state)
+
+    def _now_ms(self):
+        """Millisecond clock (MicroPython ticks_ms, CPython fallback)."""
+        return time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
+
+    def _pcm_duration_s(self, num_bytes):
+        """Seconds of audio represented by num_bytes of PCM at the rec format."""
+        channels = 2 if Audio.STEREO else 1
+        bytes_per_sec = Audio.SAMPLE_RATE * channels * (Audio.BIT_DEPTH // 8)
+        if bytes_per_sec <= 0:
+            return 0.0
+        return num_bytes / bytes_per_sec
+
+    def _start_playback_timer(self, total_s):
+        """Begin timing a playback of total_s wall-clock seconds."""
+        self._playback_total_s = total_s
+        self._playback_accum_s = 0.0
+        self._playback_start_ms = self._now_ms()
+
+    def _reset_playback_timer(self):
+        self._playback_total_s = 0.0
+        self._playback_accum_s = 0.0
+        self._playback_start_ms = 0
+
+    @property
+    def playback_elapsed_s(self):
+        """Wall-clock seconds elapsed in the current playback."""
+        if self.is_playing:
+            return self._playback_accum_s + (self._now_ms() - self._playback_start_ms) / 1000
+        if self.is_paused:
+            return self._playback_accum_s
+        return 0.0
+
+    @property
+    def playback_total_s(self):
+        """Total wall-clock seconds of the current playback (0 if unknown)."""
+        return self._playback_total_s
+
+    @property
+    def playback_fraction(self):
+        """Playback progress 0.0-1.0 (0 if total unknown)."""
+        if self._playback_total_s <= 0:
+            return 0.0
+        frac = self.playback_elapsed_s / self._playback_total_s
+        if frac < 0:
+            return 0.0
+        return 1.0 if frac > 1 else frac
 
     @property
     def state(self):
@@ -261,7 +314,7 @@ class AudioEngine:
         Returns:
             Full path to saved file, or None on error
         """
-        if self._temp_buffer is None and not DEBUG:
+        if self._temp_buffer is None:
             if DEBUG:
                 print(">>> No recording to save")
             return None
@@ -356,6 +409,14 @@ class AudioEngine:
         self._current_file = filepath
 
         if not HARDWARE_AVAILABLE:
+            try:
+                import os
+                size = os.stat(filepath)[6]
+                self._start_playback_timer(
+                    self._pcm_duration_s(max(0, size - 44)) / self._speed
+                )
+            except OSError:
+                self._start_playback_timer(0.0)
             self._set_state(AudioState.PLAYING)
             if DEBUG:
                 print(f">>> Playing (simulation): {filepath} @ {self._speed}x")
@@ -389,6 +450,7 @@ class AudioEngine:
                 sync=False  # Non-blocking
             )
 
+            self._start_playback_timer(self._pcm_duration_s(len(pcm)) / self._speed)
             self._set_state(AudioState.PLAYING)
 
             if DEBUG:
@@ -424,6 +486,9 @@ class AudioEngine:
             self.speed = speed
 
         if not HARDWARE_AVAILABLE:
+            self._start_playback_timer(
+                self._pcm_duration_s(len(self._temp_buffer)) / self._speed
+            )
             self._set_state(AudioState.PLAYING)
             if DEBUG:
                 print(f">>> Playing buffer (simulation) @ {self._speed}x")
@@ -442,6 +507,9 @@ class AudioEngine:
                 sync=False
             )
 
+            self._start_playback_timer(
+                self._pcm_duration_s(len(self._temp_buffer)) / self._speed
+            )
             self._set_state(AudioState.PLAYING)
 
             if DEBUG:
@@ -466,6 +534,8 @@ class AudioEngine:
                     print(f">>> ERROR pausing: {e}")
                 return False
 
+        # Bank the elapsed time so the progress timer freezes while paused.
+        self._playback_accum_s += (self._now_ms() - self._playback_start_ms) / 1000
         self._set_state(AudioState.PAUSED)
         if DEBUG:
             print(">>> Paused")
@@ -484,6 +554,8 @@ class AudioEngine:
                     print(f">>> ERROR resuming: {e}")
                 return False
 
+        # Restart the segment clock; banked time is preserved in accum.
+        self._playback_start_ms = self._now_ms()
         self._set_state(AudioState.PLAYING)
         if DEBUG:
             print(">>> Resumed")
@@ -501,6 +573,7 @@ class AudioEngine:
                 except Exception:
                     pass
 
+            self._reset_playback_timer()
             self._set_state(AudioState.IDLE)
             if DEBUG:
                 print(">>> Stopped")
@@ -541,8 +614,20 @@ class AudioEngine:
         """
         Update loop - call periodically to update audio levels.
 
+        Also detects the end of a non-blocking playback and returns the
+        engine to IDLE so the UI can reset its transport controls.
+
         Returns audio level (0-100) if recording, else 0.
         """
+        # Auto-stop recording at the configured cap (buffer was sized for it).
+        if self.is_recording and self.recording_duration >= Audio.MAX_RECORDING_TIME:
+            self.stop_recording()
+
+        # End-of-playback detection (sample-rate playback is non-blocking).
+        if self.is_playing and self._playback_total_s > 0:
+            if self.playback_elapsed_s >= self._playback_total_s:
+                self.stop()
+
         if self.is_recording and self._on_level_update:
             level = self.audio_level
             self._on_level_update(level)

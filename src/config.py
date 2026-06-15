@@ -200,6 +200,11 @@ class Text:
     BTN_FAST = "CELER"      # Quickly
     BTN_SORT = "ŌRDŌ"       # Order/Sort
     BTN_EXIT = "EXĪ"        # Exit!
+    BTN_YES = "ITA"        # Yes (lit. "thus/so")
+    BTN_NO = "NŌN"         # No (lit. "not")
+
+    # Control labels
+    LBL_VOLUME = "SONITUS"  # "a sound" — volume level label
 
     # File info
     FILE_INFO = "{name} | {size} | {date}"

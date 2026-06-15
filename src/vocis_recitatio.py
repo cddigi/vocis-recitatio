@@ -36,8 +36,8 @@ class VocisRecitatioApp:
             on_level_update=self._on_audio_level
         )
 
-        # Initialize UI
-        self.ui = VocisRecitatioUI(self.audio, self.files)
+        # Initialize UI (EXĪ button calls back into stop() to leave the app)
+        self.ui = VocisRecitatioUI(self.audio, self.files, on_exit=self.stop)
 
         if DEBUG:
             print(">>> Vōcis Recitātiō initialized")
@@ -70,8 +70,9 @@ class VocisRecitatioApp:
         """Stop the application."""
         self._running = False
 
-        # Stop any active audio
-        if self.audio.is_recording or self.audio.is_playing:
+        # Tear down any active audio path (recording, playing, or paused) so
+        # the mic/speaker are released before we leave.
+        if not self.audio.is_idle:
             self.audio.stop()
 
         if DEBUG:
